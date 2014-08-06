@@ -37,3 +37,9 @@ nosetests.xml
 
 # Gedit Backup Files
 *~
+
+# OS X stuff
+.DS_Store
+
+# PyCharm stuff
+.idea
