@@ -18,6 +18,7 @@ The server script then proceeds to:
     spawn the GNS3 deadman timer using the 5 bits of information passed in.
 """
 import sys
+import uuid
 
 import click
 
@@ -48,6 +49,14 @@ def create_ssl_certificate():
     Creates an SSL certificate, residing where Tornado libraries will find it.
     """
     pass
+
+
+def get_random_string():
+    """
+    Create a password for clients to use when connecting to servers, a simple approach
+    is to use Python's UUID returning a 32 bytes random string
+    """
+    return uuid.uuid4().hex
 
 
 @click.command()
