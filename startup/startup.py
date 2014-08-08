@@ -19,6 +19,10 @@ The server script then proceeds to:
 """
 import sys
 import uuid
+import subprocess
+import os
+import logging
+log = logging.getLogger(__name__)
 
 import click
 
@@ -44,19 +48,77 @@ def validate_environment(gns3_server_path, gns3_dms_path):
     return True
 
 
-def create_ssl_certificate():
+def create_ssl_certificate(dry=False):
     """
     Creates an SSL certificate, residing where Tornado libraries will find it.
+
+    :return: the path to the file containing the certificate
     """
-    pass
+    # TODO
+    if dry:
+        return "/tmp"
+    return ""
 
 
 def get_random_string():
     """
     Create a password for clients to use when connecting to servers, a simple approach
-    is to use Python's UUID returning a 32 bytes random string
+    is to use Python's UUID
+
+    :return: a 32 bytes random string
     """
     return uuid.uuid4().hex
+
+
+def launch_dms(gns3_dms_path, user_id, api_key, instance_id, region, deadtime, dry=False):
+    """
+    Launch dead man switch scripts
+
+    :return: True if process started successfully, False otherwise
+    """
+    dms_exe = os.path.join(gns3_dms_path, "gns3dms", "main.py")
+    try:
+        file = '/etc/hosts'  # FIXME with the name of the file touched by gns3 server
+        args = [
+            dms_exe,
+            "--cloud_user_name {}".format(user_id),
+            "--cloud_api_key {}".format(api_key),
+            "--instance_id {}".format(instance_id),
+            "--region {}".format(region),
+            "--deadtime {}".format(deadtime),
+            "--file {}".format(file),
+            "-k",
+            "--background"
+        ]
+        log.debug("Launching dms with args: {}".format(args))
+
+        if not dry:
+            subprocess.check_call(args)
+    except subprocess.CalledProcessError as e:
+        click.echo("Error launching GNS3 dead man switch: {}".format(e))
+        return False
+    return True
+
+
+def launch_gns3_server(gns3_server_path, dry=False):
+    """
+    Launch GNS3 server process
+
+    :return: True if process started successfully, False otherwise
+    """
+    server_exe = os.path.join(gns3_server_path, "gns3server", "main.py")
+    try:
+        args = [
+            server_exe
+        ]
+        log.debug("Launching GNS3 server with args: {}".format(args))
+
+        if not dry:
+            subprocess.check_call(args)
+    except subprocess.CalledProcessError as e:
+        click.echo("Error launching GNS3 server: {}".format(e))
+        return False
+    return True
 
 
 @click.command()
@@ -76,15 +138,31 @@ def get_random_string():
               help='Path to dead man switch installation')
 @click.option('--dry', default=False,
               help="Don't actually do anything")
+@click.option('--debug', default=False,
+              help='Print debug messages on stdout')
 def start(instance_id, user_id, api_key, region, deadtime, gns3_server_path, gns3_dms_path, dry):
     """
     Script entry point
     """
+    # check everything we need is installed
     if not validate_environment(gns3_server_path, gns3_dms_path):
-        sys.exit(1)
+        return 1
 
-    print(instance_id)
+    # launch the dead man switch
+    if not launch_dms(gns3_dms_path, user_id, api_key, instance_id, region, deadtime, dry):
+        return 2
+
+    # launch gns3 server
+    if not launch_gns3_server(gns3_server_path, dry):
+        return 3
+
+    # all good, generate cert and password and print them on the standard output
+    password = get_random_string()
+    cert_path = create_ssl_certificate(dry)
+
+    click.echo("{} {}".format(password, cert_path))
+    return 0
 
 
 if __name__ == '__main__':
-    start(auto_envvar_prefix='GNS3START')
+    sys.exit(start(auto_envvar_prefix='GNS3START'))
