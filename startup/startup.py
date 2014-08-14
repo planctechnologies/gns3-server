@@ -26,6 +26,8 @@ log = logging.getLogger(__name__)
 
 import click
 
+from mkca import setup, gen_cacert, gen_servercert, sign
+
 
 def validate_environment(gns3_server_path, gns3_dms_path):
     """
@@ -48,16 +50,22 @@ def validate_environment(gns3_server_path, gns3_dms_path):
     return True
 
 
-def create_ssl_certificate(dry=False):
+def create_ssl_certificate(ca_root, dry=False):
     """
     Creates an SSL certificate, residing where Tornado libraries will find it.
 
-    :return: the path to the file containing the certificate
+    We first create a custom CA to sign the certificate; then we create the server certificate.
+
+    :return: the paths to the files containing the CA and the server certificate
     """
-    # TODO
     if dry:
-        return "/tmp"
-    return ""
+        return "/tmp", "/tmp"
+
+    setup(ca_root)
+    ca_cert = gen_cacert(ca_root, "CA", "Canada", "Canada", "GNS3", "CA")
+    gen_servercert("CA", "Canada", "Canada", "GNS3", "CA")
+    server_cert = sign(ca_root)
+    return ca_cert, server_cert
 
 
 def get_random_string():
@@ -93,6 +101,7 @@ def launch_dms(gns3_dms_path, user_id, api_key, instance_id, region, deadtime, d
         log.debug("Launching dms with args: {}".format(args))
 
         if not dry:
+            print(" ".join(args))
             subprocess.check_call(args)
     except subprocess.CalledProcessError as e:
         click.echo("Error launching GNS3 dead man switch: {}".format(e))
@@ -140,7 +149,8 @@ def launch_gns3_server(gns3_server_path, dry=False):
               help="Don't actually do anything")
 @click.option('--debug', default=False,
               help='Print debug messages on stdout')
-def start(instance_id, user_id, api_key, region, deadtime, gns3_server_path, gns3_dms_path, dry):
+def start(instance_id, user_id, api_key, region, deadtime, gns3_server_path, gns3_dms_path, dry,
+          debug):
     """
     Script entry point
     """
@@ -158,9 +168,10 @@ def start(instance_id, user_id, api_key, region, deadtime, gns3_server_path, gns
 
     # all good, generate cert and password and print them on the standard output
     password = get_random_string()
-    cert_path = create_ssl_certificate(dry)
+    ca_root_path = "GNS3CA"  # path in the CWD
+    ca_cert_path, server_cert_path = create_ssl_certificate(ca_root_path, dry)
 
-    click.echo("{} {}".format(password, cert_path))
+    click.echo("{} {}".format(password, ca_cert_path))
     return 0
 
 
