@@ -6,7 +6,7 @@ import os
 import subprocess
 
 
-def setup(root="demoCA"):
+def setup(root):
     """
     Create filesystem structure to host certificates and keys
     """
@@ -36,6 +36,7 @@ def gen_cacert(root, countryName, stateOrProvinceName, locality, organizationNam
         countryName, stateOrProvinceName, locality, organizationName, commonName
     )
     ca_key_path = os.path.join(root, 'private', 'cakey.pem')
+    ca_cert_path = os.path.join(root, 'cacert.pem')
     args = (
         'openssl',
         'req',
@@ -47,7 +48,7 @@ def gen_cacert(root, countryName, stateOrProvinceName, locality, organizationNam
         '-x509',
         '-subj', subj,
         '-keyout', ca_key_path,
-        '-out', os.path.join(root, 'cacert.pem'),
+        '-out', ca_cert_path,
     )
     # if private key already exists, make it writeable for a while
     try:
@@ -57,6 +58,8 @@ def gen_cacert(root, countryName, stateOrProvinceName, locality, organizationNam
     subprocess.check_call(args)
     # finally set the right permissions on private key
     os.chmod(ca_key_path, 0o400)
+    # return the full path to cacert.pem
+    return os.path.abspath(ca_cert_path)
 
 
 def verify_cacert(cacert):
@@ -73,14 +76,17 @@ def verify_cacert(cacert):
     subprocess.check_call(args)
 
 
-def gen_servercert(countryName, stateOrProvinceName, locality, organizationName, commonName):
+def gen_servercert(root, countryName, stateOrProvinceName, locality, organizationName, commonName):
     """
     Configure server certificate, server.csr should be sent to the CA
     """
+    server_csr = os.path.join(root, 'server.csr')
+    server_key = os.path.join(root, 'server.key')
+
     args = (
         'openssl',
         'genrsa',
-        '-out', 'server.key',
+        '-out', server_key,
         '4096',
     )
     subprocess.check_call(args)
@@ -93,26 +99,32 @@ def gen_servercert(countryName, stateOrProvinceName, locality, organizationName,
         'req',
         '-new',
         '-newkey', 'rsa:4096',
-        '-key', 'server.key',
-        '-out', 'server.csr',
+        '-key', server_key,
+        '-out', server_csr,
         '-subj', subj,
     )
     subprocess.check_call(args)
 
+    return os.path.abspath(server_csr)
 
-def sign():
+
+def sign(root):
     """
     Sign the certificate
     """
+    server_csr = os.path.join(root, "server.csr")
+    server_pem = os.path.join(root, "server.pem")
     args = (
         'openssl',
         'ca',
-        '-in', 'server.csr',
-        '-out', 'server.pem',
+        '-in', server_csr,
+        '-out', server_pem,
         '-batch',
         '-passin', 'pass:keypass',
     )
     subprocess.check_call(args)
+
+    return os.path.abspath(server_pem)
 
 
 if __name__ == '__main__':
@@ -120,7 +132,7 @@ if __name__ == '__main__':
     Example usage
     """
     setup("demoCA")
-    gen_cacert("demoCA", "CA", "Canada", "Canada", "GNS3", "CA")
+    print(gen_cacert("demoCA", "CA", "Canada", "Canada", "GNS3", "CA"))
     verify_cacert("demoCA/cacert.pem")
-    gen_servercert("CA", "Canada", "Canada", "GNS3", "CA")
-    sign()
+    print(gen_servercert("demoCA", "CA", "Canada", "Canada", "GNS3", "CA"))
+    print(sign("demoCA"))
