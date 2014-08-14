@@ -25,7 +25,7 @@ log = logging.getLogger(__name__)
 
 import click
 
-from mkca import setup, gen_cacert, gen_servercert, sign
+from core import mkca
 
 
 def validate_environment():
@@ -58,10 +58,10 @@ def create_ssl_certificate(ca_root, dry=False):
     if dry:
         return "/tmp", "/tmp"
 
-    setup(ca_root)
-    ca_cert = gen_cacert(ca_root, "CA", "Canada", "Canada", "GNS3", "CA")
-    gen_servercert("CA", "Canada", "Canada", "GNS3", "CA")
-    server_cert = sign(ca_root)
+    mkca.setup(ca_root)
+    ca_cert = mkca.gen_cacert(ca_root, "CA", "Canada", "Canada", "GNS3", "CA")
+    mkca.gen_servercert("CA", "Canada", "Canada", "GNS3", "CA")
+    server_cert = mkca.sign(ca_root)
     return ca_cert, server_cert
 
 
