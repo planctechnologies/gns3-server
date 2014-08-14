@@ -18,6 +18,7 @@ The server script then proceeds to:
     spawn the GNS3 deadman timer using the 5 bits of information passed in.
 """
 import sys
+import os
 import uuid
 import subprocess
 import logging
@@ -25,6 +26,10 @@ log = logging.getLogger(__name__)
 
 import click
 
+# following 3 lines are a workaround to let this script to be run both directly with
+# `python startup.py` and from the `gns3startup` entrypoint installed with setuptools
+here = os.path.realpath(os.path.dirname(__file__))
+sys.path.append(os.path.normpath(here))
 from core import mkca
 
 
@@ -167,5 +172,9 @@ def start(instance_id, user_id, api_key, region, deadtime, dry, debug):
     return 0
 
 
-if __name__ == '__main__':
+def main():
     sys.exit(start(auto_envvar_prefix='GNS3START'))
+
+
+if __name__ == '__main__':
+    main()
