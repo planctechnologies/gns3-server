@@ -20,7 +20,6 @@ The server script then proceeds to:
 import sys
 import uuid
 import subprocess
-import os
 import logging
 log = logging.getLogger(__name__)
 
@@ -29,22 +28,20 @@ import click
 from mkca import setup, gen_cacert, gen_servercert, sign
 
 
-def validate_environment(gns3_server_path, gns3_dms_path):
+def validate_environment():
     """
     Ensure gns3-server and gns3-dms are available on the system
     """
-    sys.path.append(gns3_server_path)
     try:
         from gns3server import version
     except ImportError:
-        click.echo('GNS3 server not found at: {}'.format(gns3_server_path))
+        click.echo('GNS3 server not found!')
         return False
 
-    sys.path.append(gns3_dms_path)
     try:
         from gns3dms import version
     except ImportError:
-        click.echo('GNS3 dead man switch not found at: {}'.format(gns3_dms_path))
+        click.echo('GNS3 dead man switch not found at!')
         return False
 
     return True
@@ -78,23 +75,23 @@ def get_random_string():
     return uuid.uuid4().hex
 
 
-def launch_dms(gns3_dms_path, user_id, api_key, instance_id, region, deadtime, dry=False):
+def launch_dms(user_id, api_key, instance_id, region, deadtime, dry=False):
     """
     Launch dead man switch scripts
 
     :return: True if process started successfully, False otherwise
     """
-    dms_exe = os.path.join(gns3_dms_path, "gns3dms", "main.py")
+    dms_exe = "gns3dms"
     try:
         file = '/etc/hosts'  # FIXME with the name of the file touched by gns3 server
         args = [
             dms_exe,
-            "--cloud_user_name {}".format(user_id),
-            "--cloud_api_key {}".format(api_key),
-            "--instance_id {}".format(instance_id),
-            "--region {}".format(region),
-            "--deadtime {}".format(deadtime),
-            "--file {}".format(file),
+            "--cloud_user_name", user_id,
+            "--cloud_api_key", api_key,
+            "--instance_i", instance_id,
+            "--region", region,
+            "--deadtime", deadtime,
+            "--file", file,
             "-k",
             "--background"
         ]
@@ -109,13 +106,13 @@ def launch_dms(gns3_dms_path, user_id, api_key, instance_id, region, deadtime, d
     return True
 
 
-def launch_gns3_server(gns3_server_path, dry=False):
+def launch_gns3_server(dry=False):
     """
     Launch GNS3 server process
 
     :return: True if process started successfully, False otherwise
     """
-    server_exe = os.path.join(gns3_server_path, "gns3server", "main.py")
+    server_exe = "gns3server"
     try:
         args = [
             server_exe
@@ -141,29 +138,24 @@ def launch_gns3_server(gns3_server_path, dry=False):
               help='Rackspace region of the running instance')
 @click.option('--deadtime', required=True, envvar='DEADTIME',
               help='Timeout value in seconds after which the running instance is terminated')
-@click.option('--gns3-server-path', envvar='GNS3_SERVER_PATH', default='.',
-              help='Path to gns3-server installation')
-@click.option('--gns3-dms-path', envvar='GNS3_DMS_PATH', default='.',
-              help='Path to dead man switch installation')
 @click.option('--dry', default=False,
               help="Don't actually do anything")
 @click.option('--debug', default=False,
               help='Print debug messages on stdout')
-def start(instance_id, user_id, api_key, region, deadtime, gns3_server_path, gns3_dms_path, dry,
-          debug):
+def start(instance_id, user_id, api_key, region, deadtime, dry, debug):
     """
     Script entry point
     """
     # check everything we need is installed
-    if not validate_environment(gns3_server_path, gns3_dms_path):
+    if not validate_environment():
         return 1
 
     # launch the dead man switch
-    if not launch_dms(gns3_dms_path, user_id, api_key, instance_id, region, deadtime, dry):
+    if not launch_dms(user_id, api_key, instance_id, region, deadtime, dry):
         return 2
 
     # launch gns3 server
-    if not launch_gns3_server(gns3_server_path, dry):
+    if not launch_gns3_server(dry):
         return 3
 
     # all good, generate cert and password and print them on the standard output
