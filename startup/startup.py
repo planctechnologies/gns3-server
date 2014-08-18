@@ -26,7 +26,7 @@ log = logging.getLogger(__name__)
 
 import click
 
-# following 3 lines are a workaround to let this script to be run both directly with
+# following 3 lines are a workaround to let this script be run both directly with
 # `python startup.py` and from the `gns3startup` entrypoint installed with setuptools
 here = os.path.realpath(os.path.dirname(__file__))
 sys.path.append(os.path.normpath(here))
@@ -46,7 +46,7 @@ def validate_environment():
     try:
         from gns3dms import version
     except ImportError:
-        click.echo('GNS3 dead man switch not found at!')
+        click.echo('GNS3 dead man switch not found!')
         return False
 
     return True
@@ -65,7 +65,7 @@ def create_ssl_certificate(ca_root, dry=False):
 
     mkca.setup(ca_root)
     ca_cert = mkca.gen_cacert(ca_root, "CA", "Canada", "Canada", "GNS3", "CA")
-    mkca.gen_servercert("CA", "Canada", "Canada", "GNS3", "CA")
+    mkca.gen_servercert(ca_root, "CA", "Canada", "Canada", "GNS3", "CA")
     server_cert = mkca.sign(ca_root)
     return ca_cert, server_cert
 
@@ -103,7 +103,6 @@ def launch_dms(user_id, api_key, instance_id, region, deadtime, dry=False):
         log.debug("Launching dms with args: {}".format(args))
 
         if not dry:
-            print(" ".join(args))
             subprocess.check_call(args)
     except subprocess.CalledProcessError as e:
         click.echo("Error launching GNS3 dead man switch: {}".format(e))
