@@ -143,9 +143,7 @@ class VM(object):
 
         # Locate the image
         updated_image_path = os.path.join(self.images_directory, image)
-        if os.path.isfile(updated_image_path):
-            image = updated_image_path
-        else:
+        if not os.path.isfile(updated_image_path):
             if not os.path.exists(self.images_directory):
                 os.mkdir(self.images_directory)
             if request.get("cloud_path", None):
@@ -153,8 +151,10 @@ class VM(object):
                 cloud_path = request.get("cloud_path")
                 full_cloud_path = "/".join((cloud_path, image))
 
+                log.info("Fetching image from {} to {}".format(full_cloud_path, updated_image_path))
                 provider = get_provider(self._cloud_settings)
                 provider.download_file(full_cloud_path, updated_image_path)
+        image = updated_image_path
 
         try:
             if platform not in PLATFORMS:

@@ -437,7 +437,7 @@ class Router(object):
         """
 
         if not self._image:
-            raise DynamipsError("Register an IOS image fist")
+            raise DynamipsError("Register an IOS image first")
 
         try:
             self._hypervisor.send("vm set_tsg {name} {group_id}".format(name=self._name,
